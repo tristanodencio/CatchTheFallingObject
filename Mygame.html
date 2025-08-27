@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Catch the Falling Object</title>
+  <style>
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #1a1a1a, #333);
+      color: white;
+      text-align: center;
+      font-family: "Segoe UI", sans-serif;
+      user-select: none;
+    }
+    h1 {
+      margin: 15px 0 5px;
+      font-size: 28px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    }
+    p {
+      font-size: 14px;
+      color: #ccc;
+      margin-bottom: 10px;
+    }
+    canvas {
+      background: #222;
+      border: 3px solid #555;
+      border-radius: 10px;
+      display: block;
+      margin: auto;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+  </style>
+</head>
+<body>
+  <h1>🎯 Catch the Falling Object 🎯</h1>
+  <p>⬅️ ➡️ Move | ⏸ Space/P Pause | 🔄 R Restart</p>
+  <canvas id="gameCanvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function resizeCanvas() {
+      const maxWidth = Math.min(window.innerWidth * 0.9, 1000);
+      const height = maxWidth * 0.6; // Keep it wide
+      canvas.width = maxWidth;
+      canvas.height = height;
+
+      paddle.width = canvas.width * 0.12;
+      paddle.height = canvas.height * 0.03;
+      paddle.y = canvas.height - paddle.height - 10;
+    }
+
+    let score = 0;
+    let lives = 3;
+    let paused = false;
+    let difficultySpeed = 0.2; // multiplier for difficulty
+
+    const paddle = {
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+      color: "white",
+      speed: 9
+    };
+
+    let objects = [];
+    const colors = ["#ff4d4d", "#ffdb4d", "#4dff4d", "#4db8ff", "#ff884d", "#b84dff"];
+
+    function createObject() {
+      if (paused) return;
+      const size = canvas.width * 0.04;
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      objects.push({
+        x: Math.random() * (canvas.width - size),
+        y: -size,
+        size: size,
+        color: color,
+        speed: (2 + Math.random() * 0) * difficultySpeed
+      });
+    }
+
+    let leftPressed = false;
+    let rightPressed = false;
+
+    document.addEventListener("keydown", (e) => {
+  const key = e.key.toLowerCase();
+  if (key === "arrowleft" || key === "a") leftPressed = true;
+  if (key === "arrowright" || key === "d") rightPressed = true;
+  if (key === " " || key === "p") paused = !paused;
+  if (key === "r") restartGame();
+});
+
+document.addEventListener("keyup", (e) => {
+  const key = e.key.toLowerCase();
+  if (key === "arrowleft" || key === "a") leftPressed = false;
+  if (key === "arrowright" || key === "d") rightPressed = false;
+});
+
+
+    function restartGame() {
+      score = 0;
+      lives = 3;
+      objects = [];
+      difficultySpeed = 1;
+      paddle.x = canvas.width / 2 - paddle.width / 2;
+      paddle.color = "white";
+      paused = false;
+    }
+
+    function update() {
+      if (paused) return;
+
+      // Player movement
+      if (leftPressed && paddle.x > 0) paddle.x -= paddle.speed;
+      if (rightPressed && paddle.x + paddle.width < canvas.width) paddle.x += paddle.speed;
+
+      // Increase difficulty gradually
+      difficultySpeed += 0.0005;
+
+      for (let i = 0; i < objects.length; i++) {
+        let obj = objects[i];
+        obj.y += obj.speed;
+
+        if (
+          obj.y + obj.size >= paddle.y &&
+          obj.x + obj.size >= paddle.x &&
+          obj.x <= paddle.x + paddle.width
+        ) {
+          score++;
+          paddle.color = obj.color;
+          objects.splice(i, 1);
+          i--;
+          continue;
+        }
+
+        if (obj.y > canvas.height) {
+          lives--;
+          objects.splice(i, 1);
+          i--;
+        }
+      }
+
+      if (lives <= 0) {
+        alert("💀 Game Over! Your score: " + score);
+        restartGame();
+      }
+    }
+
+    function drawRoundedRect(x, y, w, h, r, color) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  drawRoundedRect(paddle.x, paddle.y, paddle.width, paddle.height, 6, paddle.color);
+
+  for (let obj of objects) {
+    ctx.shadowColor = obj.color;
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = obj.color;
+    ctx.beginPath();
+    ctx.arc(obj.x + obj.size / 2, obj.y + obj.size / 2, obj.size / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  // Text settings
+  ctx.fillStyle = "white";
+  ctx.font = `${canvas.width * 0.025}px Segoe UI`;
+  const paddingX = 20; // horizontal space from edges
+  const paddingY = 30; // vertical space from top
+
+  // Score on left
+  ctx.fillText("Score: " + score, paddingX, paddingY);
+
+  // Lives on right
+  const livesText = "Lives: " + lives;
+  const livesWidth = ctx.measureText(livesText).width;
+  ctx.fillText(livesText, canvas.width - livesWidth - paddingX, paddingY);
+
+  // Pause overlay
+  if (paused) {
+    ctx.fillStyle = "yellow";
+    ctx.font = `${canvas.width * 0.05}px Segoe UI`;
+    ctx.fillText("⏸ PAUSED", canvas.width / 2 - canvas.width * 0.14, canvas.height / 2);
+  }
+}
+
+
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    setInterval(createObject, 2050);
+    restartGame();
+    gameLoop();
+  </script>
+</body>
+</html>
